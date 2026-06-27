@@ -63,3 +63,14 @@
   (is (= "1b0000000100000000" (enc 0x100000000)))      ; one past uint32 → 8-byte form
   (is (= 4294967295 (cbor/decode (cbor/encode 4294967295))))
   (is (= 4294967296 (cbor/decode (cbor/encode 4294967296)))))
+
+;; ── nested order-preserving maps (CACAO envelope shape) ───────────────────────
+(deftest nested-ordered
+  ;; {h:{t:"x"}, p:{b:1,a:2}, s:{t:"E"}} with EVERY level order-preserved
+  (let [c (cbor/encode (cbor/ordered [["h" (cbor/ordered [["t" "x"]])]
+                                      ["p" (cbor/ordered [["b" 1] ["a" 2]])]
+                                      ["s" (cbor/ordered [["t" "E"]])]]))]
+    ;; decodes back to the same data (as plain maps)
+    (is (= {"h" {"t" "x"} "p" {"b" 1 "a" 2} "s" {"t" "E"}} (cbor/decode c)))
+    ;; p's bytes keep b-before-a (61 62 = "b" first), not a-before-b
+    (is (clojure.string/includes? (hx c) "616201616102"))))

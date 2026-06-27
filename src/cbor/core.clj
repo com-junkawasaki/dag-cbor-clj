@@ -19,6 +19,14 @@
 (ns cbor.core
   (:import (java.io ByteArrayOutputStream ByteArrayInputStream)))
 
+;; An order-preserving map (vs. a Clojure map, which `encode` canonical-sorts).
+;; Nestable: an OrderedMap value inside another OrderedMap keeps its own order —
+;; what CAIP-122 CACAO needs (the {h,p,s} envelope AND p's 8 fields are ordered).
+(deftype OrderedMap [pairs])
+(defn ordered
+  "Wrap an ordered seq of [k v] pairs as a map whose key order `encode` preserves."
+  [pairs] (OrderedMap. pairs))
+
 ;; ── encode ────────────────────────────────────────────────────────────────────
 (defn- write-head [^ByteArrayOutputStream o major n]
   (let [mt (bit-shift-left major 5)]
@@ -64,6 +72,7 @@
     (string? x)         (let [b (.getBytes ^String x "UTF-8")] (write-head o 3 (count b)) (.write o b))
     (keyword? x)        (let [b (.getBytes (name x) "UTF-8")] (write-head o 3 (count b)) (.write o b))
     (bytes? x)          (do (write-head o 2 (count x)) (.write o ^bytes x))
+    (instance? OrderedMap x) (encode-pairs o (.-pairs ^OrderedMap x))
     (map? x)            (encode-pairs o (sort-by key dag-cbor-key< (seq x)))
     (sequential? x)     (do (write-head o 4 (count x)) (doseq [e x] (encode-into o e)))
     :else (throw (ex-info "cbor: unsupported type" {:type (type x) :value x}))))
