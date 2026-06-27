@@ -1,0 +1,6 @@
+{:paths ["src" "test"]
+ :tasks
+ {test
+  {:task (do (require 'clojure.test 'cbor.core-test)
+             (let [r (clojure.test/run-tests 'cbor.core-test)]
+               (when (pos? (+ (:fail r) (:error r))) (System/exit 1))))}}}
